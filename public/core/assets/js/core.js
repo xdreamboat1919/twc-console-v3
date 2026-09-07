@@ -1,7 +1,7 @@
 var $=(id)=> document.getElementById(id);
 function money(n){return typeof wsMoney==='function'?wsMoney(n):'$'+Math.round(n).toLocaleString()}
 function pad(n){return String(Math.max(1,Number.parseInt(n)||1)).padStart(2,'0')}
-function esc(s){return s.replace(/[&<>]/g,(c)=> {'&':'&amp;','<':'&lt;','>':'&gt;'}[c])}
+function esc(s){return s.replace(/[&<>]/g,(c)=> ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
 
 /* ================= NAVIGATION ================= */
 var SECMETA={};
@@ -129,3 +129,4 @@ document.addEventListener('click',(e)=> {
   var b=e.target.closest('[data-go]'); if(!b)return;
   go(b.dataset.go);
 });
+
