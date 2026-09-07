@@ -1,0 +1,9 @@
+node_modules/
+dist/
+coverage/
+*.local
+.DS_Store
+
+# Business data must never enter git history
+*.session.json
+exports/

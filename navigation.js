@@ -1,0 +1,43 @@
+/* Campaign Console 2.0 information architecture. Every workspace appears once. */
+var NAV=[
+ ['Command Center','bi-command',[
+   ['routine','Executive overview','bi-grid-1x2'],['daily','Daily performance','bi-calendar-check'],
+   ['trends','Trends and pacing','bi-graph-up-arrow'],['actions','Optimization queue','bi-list-check'],
+   ['changes','Decision log','bi-clock-history']
+ ]],
+ ['Growth','bi-speedometer2',[
+   ['scaleops','Scale control room','bi-speedometer'],['forecast','Forecast','bi-graph-up'],
+   ['budget','Budget planning','bi-sliders'],['econ','Unit economics','bi-calculator'],
+   ['recovery','ROAS recovery','bi-arrow-counterclockwise'],['scale','Scale diagnostics','bi-arrows-angle-expand'],
+   ['store','Store health','bi-shop'],['blend','Blended metrics','bi-layers-half'],
+   ['attr','Attribution','bi-signpost-2'],['diag','Diagnose','bi-search-heart']
+ ]],
+ ['Creative Lab','bi-collection-play',[
+   ['pipeline','Restart and creative testing','bi-kanban'],
+   ['creativeops','Creative intelligence','bi-lightbulb'],['experiments','Experiment center','bi-beaker'],
+   ['briefs','Creative briefs','bi-file-earmark-text'],['creative','Batch calculator','bi-collection-play'],
+   ['competitors','Live competitor ads','bi-broadcast'],['compete','Competition research','bi-binoculars']
+ ]],
+ ['Campaign Architecture','bi-diagram-3',[
+   ['workspace','Workspace and entities','bi-database'],['build','Campaign structure','bi-columns-gap'],
+   ['name','Naming system','bi-tag'],['offers','Offers','bi-basket'],['channels','Channel mix','bi-diagram-3-fill'],
+   ['rollout','Rollout plan','bi-rocket-takeoff'],['audregistry','Audience registry','bi-people-fill'],
+   ['icp','Ideal customer profile','bi-person-badge'],['ltv','LTV and CAC','bi-graph-up-arrow'],
+   ['seg','Customer segments','bi-diagram-2'],['aud','Audience builder','bi-bullseye'],
+   ['google','Google Ads','bi-google'],['rules','Automation rules','bi-robot']
+ ]],
+ ['Governance','bi-shield-check',[
+   ['measurementhealth','Measurement health','bi-heart-pulse'],['complianceledger','Claims and incidents','bi-journal-check'],
+   ['preflight','Pre-flight','bi-clipboard-check'],['comp','Copy check','bi-spellcheck'],
+   ['pixel','Pixel and CAPI','bi-broadcast-pin'],['track','Tracking plan','bi-broadcast'],
+   ['signals','Signal design','bi-activity'],['shopify','Shopify measurement','bi-bag'],
+   ['app','App measurement','bi-phone'],['make','Measurement scenarios','bi-diagram-3']
+ ]],
+ ['Operating Playbooks','bi-signpost-split',[
+   ['flow','Workflows','bi-diagram-3'],['scen','Scenarios','bi-signpost-split'],['maps','System maps','bi-bounding-box']
+ ]],
+ ['Reports and Reference','bi-clipboard-data',[
+   ['auditarchive','Audit and report archive','bi-archive'],['report','Weekly report','bi-file-earmark-bar-graph'],
+   ['looker','Looker Studio','bi-bar-chart-steps'],['ref','Reference manual','bi-journal-bookmark']
+ ]]
+];

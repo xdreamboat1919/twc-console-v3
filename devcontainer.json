@@ -1,0 +1,19 @@
+{
+  "name": "TWC Campaign Console",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:22",
+  "postCreateCommand": "npm ci",
+  "postAttachCommand": "npm run dev",
+  "forwardPorts": [8000],
+  "portsAttributes": {
+    "8000": { "label": "Console", "visibility": "private", "onAutoForward": "openBrowser" }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": ["biomejs.biome", "vitest.explorer"],
+      "settings": {
+        "editor.defaultFormatter": "biomejs.biome",
+        "editor.formatOnSave": true
+      }
+    }
+  }
+}

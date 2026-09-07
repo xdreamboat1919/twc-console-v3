@@ -1,0 +1,4 @@
+# The domain layer holds the decision logic. Every change needs review.
+/src/domain/            @twc-console-owners
+/scripts/validate.mjs   @twc-console-owners
+/.github/workflows/     @twc-console-owners
