@@ -11,7 +11,7 @@ var clSourceAction='';
 var xtEditing='';
 
 function opsEsc(value){
-  return String(value==null?'':value).replace(/[&<>"']/g,(character)=> {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]);
+return String(value==null?'':value).replace(/[&<>"']/g,(character)=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
 }
 function opsId(prefix){return prefix+'-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7)}
 function opsToday(){
@@ -512,3 +512,4 @@ $('xt-rows').addEventListener('click',(event)=> {
 $('rp-use-daily').addEventListener('click',opsPopulateWeeklyReport);
 
 $('rp-wk').value=opsToday();dpResetForm();aqResetForm();clResetForm();xtResetForm();
+
