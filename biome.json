@@ -1,6 +1,6 @@
 {
   "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
-  "files": { "ignore": ["dist", "node_modules", "legacy", "src/styles"] },
+  "files": { "ignore": ["dist", "node_modules", "legacy", "public/core", "src/styles"] },
   "formatter": {
     "enabled": true,
     "indentStyle": "space",

@@ -1,0 +1,1253 @@
+/* Connected manual creative pipeline. Values are planning inputs, never platform actions. */
+var PL_STAGES = [
+  'Insight',
+  'Brief',
+  'Production',
+  'Review',
+  'Approved',
+  'Scheduled',
+  'Testing',
+  'Learning',
+  'Archived',
+];
+var PL_WINNERS = ['Unproven', 'Promising', 'Validated', 'Scalable'];
+var plTab = 'restart',
+  plEditing = '',
+  plDraft = null;
+var PL_FIELDS = [
+  [
+    'Identity and hypothesis',
+    [
+      ['name', 'Brief / asset name'],
+      ['product', 'Product'],
+      ['campaign', 'Campaign'],
+      ['concept', 'Concept'],
+      ['motivation', 'Customer motivation'],
+      [
+        'awareness',
+        'Awareness stage',
+        'select',
+        ['Unaware', 'Problem aware', 'Solution aware', 'Product aware', 'Most aware'],
+      ],
+      ['angle', 'Angle'],
+      ['hook', 'Hook'],
+      ['format', 'Format', 'select', ['Video', 'Static', 'Carousel', 'Other']],
+      ['creator', 'Creator'],
+      ['owner', 'Owner'],
+      ['due', 'Production due', 'date'],
+      ['stage', 'Production stage', 'select', PL_STAGES],
+      ['blocker', 'Current blocker'],
+      ['parentId', 'Parent pipeline item', 'parent'],
+      ['replacementFor', 'Replacement for', 'parent'],
+      ['assetId', 'Linked performance asset', 'asset'],
+      ['experimentId', 'Linked experiment', 'experiment'],
+      ['hypothesis', 'If / then / because', 'textarea'],
+      ['variable', 'One variable being tested'],
+      ['control', 'Control'],
+      ['offer', 'Offer held constant'],
+      ['destination', 'Destination URL', 'url'],
+      ['assetUrl', 'Final asset URL', 'url'],
+    ],
+  ],
+  [
+    'Production and approval',
+    [
+      ['estimatedHours', 'Estimated hours', 'number'],
+      ['actualHours', 'Actual hours', 'number'],
+      ['creatorCost', 'External production cost', 'number'],
+      ['revisionRounds', 'Revision rounds', 'number'],
+      ['width', 'Asset width, px', 'number'],
+      ['height', 'Asset height, px', 'number'],
+      ['requiredRatio', 'Required ratio', 'select', ['1:1', '4:5', '9:16', '16:9', 'Other']],
+      ['captions', 'Captions checked', 'check'],
+      ['safeArea', 'Safe areas checked', 'check'],
+      ['thumbnail', 'Thumbnail checked', 'check'],
+      ['specReviewed', 'Placement versions reviewed', 'check'],
+      ['claimId', 'Approved claim ID'],
+      ['claimVersion', 'Claim version'],
+      ['approvalRef', 'Approval evidence URL', 'url'],
+      ['reviewer', 'Reviewer'],
+      ['approvedAt', 'Approval date', 'date'],
+      ['approvalExpiry', 'Approval expires / review due', 'date'],
+      ['copyApproved', 'Final wording approved', 'check'],
+      ['destinationApproved', 'Destination approved', 'check'],
+      ['trackingChecked', 'Tracking and tags checked', 'check'],
+    ],
+  ],
+  [
+    'Test schedule and delivery',
+    [
+      ['scheduledStart', 'Test start', 'date'],
+      ['scheduledEnd', 'Test end', 'date'],
+      ['cellBudget', 'Total test budget', 'number'],
+      ['minimumSpend', 'Planned minimum spend', 'number'],
+      ['minimumExposure', 'Planned minimum impressions', 'number'],
+      ['maxLoss', 'Maximum contribution loss', 'number'],
+      ['targetCpa', 'Maximum valid-order CPA', 'number'],
+      ['guardrail', 'Commercial guardrail', 'textarea'],
+      ['winnerRule', 'Predeclared winner criteria', 'textarea'],
+      ['stopRule', 'Stop conditions', 'textarea'],
+      ['readAfter', 'Read after conversion lag', 'date'],
+      ['observedSpend', 'Test spend to date', 'number'],
+      ['observedImpressions', 'Test impressions', 'number'],
+      ['orders', 'Backend valid orders', 'number'],
+      ['newCustomers', 'Verified new customers', 'number'],
+      ['revenue', 'Backend revenue', 'number'],
+      ['contribution', 'Contribution before media', 'number'],
+      ['refunds', 'Refunded orders', 'number'],
+      ['deliveryIssue', 'Uneven delivery / tracking / edits', 'textarea'],
+      ['readComplete', 'Planned evidence requirement met', 'check'],
+      [
+        'outcome',
+        'Test outcome',
+        'select',
+        ['Pending', 'Inconclusive', 'Stopped for risk', 'Loss', 'Win'],
+      ],
+      ['winnerStage', 'Winner stage', 'select', PL_WINNERS],
+    ],
+  ],
+  [
+    'Learning and confirmation',
+    [
+      ['finding', 'What happened', 'textarea'],
+      ['explanation', 'Likely explanation', 'textarea'],
+      ['limitations', 'Confounds and limitations', 'textarea'],
+      ['preserve', 'What to preserve', 'textarea'],
+      ['change', 'What to change next', 'textarea'],
+      ['nextHypothesis', 'Next hypothesis', 'textarea'],
+      ['confirmationEvidence', 'Confirmation evidence URL', 'url'],
+      ['confirmedAt', 'Confirmation read date', 'date'],
+      ['confirmationPassed', 'Confirmation cleared commercial guardrails', 'check'],
+      ['scaleEvidence', 'Scale evidence URL', 'url'],
+      ['scalePassed', 'Higher-spend validation cleared', 'check'],
+      ['retestReason', 'Why retest', 'textarea'],
+      ['retestPlan', 'What will change in the retest', 'textarea'],
+    ],
+  ],
+  [
+    'Scale comparison: equal-duration windows',
+    [
+      ['windowDays', 'Days in each comparison window', 'number'],
+      ['beforeSpend', 'Before spend', 'number'],
+      ['afterSpend', 'After spend', 'number'],
+      ['beforeOrders', 'Before valid orders', 'number'],
+      ['afterOrders', 'After valid orders', 'number'],
+      ['beforeContribution', 'Before contribution before media', 'number'],
+      ['afterContribution', 'After contribution before media', 'number'],
+      ['scaleConfounds', 'Other changes / attribution limits', 'textarea'],
+    ],
+  ],
+];
+function plState() {
+  if (!workspaceState.pipeline) workspaceState.pipeline = { version: 1, items: [], settings: {} };
+  return workspaceState.pipeline;
+}
+function plItems() {
+  return plState().items;
+}
+function plFind(id) {
+  return plItems().find((x) => x.id === id);
+}
+function plE(v) {
+  return wsEsc(v);
+}
+function plN(v) {
+  return v == null || v === '' ? null : Number(v);
+}
+function plFinite(v) {
+  return typeof v === 'number' && Number.isFinite(v);
+}
+function plDayDiff(a, b) {
+  return Math.floor((new Date(b + 'T12:00:00Z') - new Date(a + 'T12:00:00Z')) / 86400000);
+}
+function plValidDate(v) {
+  return (
+    /^\d{4}-\d{2}-\d{2}$/.test(v || '') &&
+    !isNaN(Date.parse(v)) &&
+    new Date(v + 'T12:00:00Z').toISOString().slice(0, 10) === v
+  );
+}
+function plAsset(x) {
+  return (creativeAssets || []).find((a) => a.id === x.assetId);
+}
+function plMetrics(x) {
+  var a = plAsset(x);
+  return {
+    spend: a ? a.spend : x.observedSpend,
+    impressions: a ? a.impressions : x.observedImpressions,
+    orders: a ? a.backendOrders : x.orders,
+    newCustomers: a ? a.newCustomers : x.newCustomers,
+    revenue: a ? a.revenue : x.revenue,
+    contribution: a ? a.contribution : x.contribution,
+    refunds: a ? a.refunds : x.refunds,
+    source: a ? 'Linked performance row (must cover this test window)' : 'Manual test totals',
+  };
+}
+function plSpecs(x) {
+  var checks = [];
+  if (!(x.width > 0 && x.height > 0)) checks.push('Dimensions missing');
+  else if (x.requiredRatio !== 'Other') {
+    var p = String(x.requiredRatio || '')
+      .split(':')
+      .map(Number);
+    if (!p[1] || Math.abs(x.width / x.height - p[0] / p[1]) > 0.02)
+      checks.push('Aspect ratio mismatch');
+  }
+  if (x.format === 'Video' && !x.captions) checks.push('Captions not checked');
+  if (!x.safeArea) checks.push('Safe areas not checked');
+  if (!x.thumbnail) checks.push('Thumbnail not checked');
+  if (!x.specReviewed) checks.push('Placement versions not reviewed');
+  return checks;
+}
+function plReadiness(x, today) {
+  today = today || wsToday();
+  var issues = [];
+  [
+    ['name', 'Name'],
+    ['product', 'Product'],
+    ['campaign', 'Campaign'],
+    ['owner', 'Owner'],
+    ['hypothesis', 'Hypothesis'],
+    ['variable', 'Test variable'],
+    ['control', 'Control'],
+    ['offer', 'Offer'],
+    ['winnerRule', 'Winner criteria'],
+    ['stopRule', 'Stop rule'],
+    ['guardrail', 'Commercial guardrail'],
+    ['claimId', 'Claim ID'],
+    ['claimVersion', 'Claim version'],
+    ['reviewer', 'Reviewer'],
+  ].forEach((p) => {
+    if (!String(x[p[0]] || '').trim()) issues.push(p[1] + ' missing');
+  });
+  ['assetUrl', 'destination', 'approvalRef'].forEach((k) => {
+    if (!wsSafeLink(x[k])) issues.push(k + ' needs an HTTP(S) URL');
+  });
+  if (!plValidDate(x.approvedAt) || x.approvedAt > today)
+    issues.push('Approval date missing or in future');
+  if (
+    !plValidDate(x.approvalExpiry) ||
+    x.approvalExpiry < today ||
+    (x.scheduledEnd && x.approvalExpiry < x.scheduledEnd)
+  )
+    issues.push('Approval must cover today and the test window');
+  ['copyApproved', 'destinationApproved', 'trackingChecked'].forEach((k) => {
+    if (!x[k]) issues.push(k + ' not checked');
+  });
+  if (
+    !(
+      x.cellBudget > 0 &&
+      x.minimumSpend > 0 &&
+      x.minimumExposure > 0 &&
+      x.targetCpa > 0 &&
+      x.maxLoss > 0
+    )
+  )
+    issues.push('Budget, evidence thresholds, target CPA and loss limit required');
+  if (x.minimumSpend > x.cellBudget) issues.push('Minimum spend exceeds test budget');
+  if (
+    !plValidDate(x.scheduledStart) ||
+    !plValidDate(x.scheduledEnd) ||
+    x.scheduledEnd < x.scheduledStart
+  )
+    issues.push('Valid test dates required');
+  if (!plValidDate(x.readAfter) || x.readAfter < x.scheduledEnd)
+    issues.push('Read date must follow the test window');
+  if (x.blocker) issues.push('Resolve the production blocker');
+  var claim = (workspaceState.complianceClaims || []).find(
+    (c) => c.claimId === x.claimId && c.version === x.claimVersion,
+  );
+  if (
+    claim &&
+    (claim.status !== 'Approved' ||
+      claim.expires < today ||
+      claim.approved > today ||
+      (x.scheduledEnd && claim.expires < x.scheduledEnd))
+  )
+    issues.push('Linked claim version is not currently approved for this window');
+  if (x.restartCell && typeof rsLaunchIssues === 'function') {
+    issues = issues.concat(rsLaunchIssues());
+    var cell = rsCell(x.restartCell);
+    if (!cell || x.product !== rsProduct(cell.lane))
+      issues.push('Restart cell / product does not match the current plan');
+    else if (x.concept !== cell.concept)
+      issues.push('Brief variant differs from the assigned ad set');
+    else if (x.targetCpa > (cell.lane === 'skin' ? rsState().skinCpa : rsState().kitCpa))
+      issues.push('Brief CPA target exceeds the recorded product target');
+    if (x.scheduledStart < rsState().start) issues.push('Test starts before the restart window');
+  }
+  return issues.concat(plSpecs(x));
+}
+function plPromotion(x, today) {
+  today = today || wsToday();
+  var issues = [],
+    m = plMetrics(x),
+    rank = PL_WINNERS.indexOf(x.winnerStage);
+  if (rank < 2) return issues;
+  if (plReadiness(x, today).length) issues.push('Launch readiness is incomplete');
+  if (x.outcome !== 'Win' || !x.readComplete || !x.finding || !x.limitations)
+    issues.push('Record a win, completed evidence, finding and limitations');
+  if (!x.readAfter || x.readAfter > today) issues.push('Wait for the declared read date');
+  if (
+    !(
+      m.spend >= x.minimumSpend &&
+      m.impressions >= x.minimumExposure &&
+      m.orders > 0 &&
+      m.spend / m.orders <= x.targetCpa
+    )
+  )
+    issues.push('Recorded evidence or CPA does not clear the declared criteria');
+  if (m.contribution == null || m.contribution - m.spend < 0)
+    issues.push('Nonnegative contribution after media required');
+  if (
+    !x.confirmationPassed ||
+    !wsSafeLink(x.confirmationEvidence) ||
+    !plValidDate(x.confirmedAt) ||
+    x.confirmedAt > today ||
+    x.confirmedAt < x.readAfter
+  )
+    issues.push('Subsequent dated confirmation and evidence required');
+  if (
+    rank === 3 &&
+    (!x.scalePassed ||
+      !wsSafeLink(x.scaleEvidence) ||
+      !(x.afterSpend > x.beforeSpend) ||
+      !(x.afterOrders > x.beforeOrders))
+  )
+    issues.push('Higher-spend evidence and incremental valid orders required');
+  if (rank === 3) {
+    var marginal = plMarginal(x);
+    if (
+      !(x.windowDays > 0) ||
+      marginal.cpa == null ||
+      marginal.cpa > x.targetCpa ||
+      marginal.contribution == null ||
+      marginal.contribution < 0 ||
+      !x.scaleConfounds
+    )
+      issues.push(
+        'Scale windows, marginal efficiency, contribution and confounds must clear review',
+      );
+  }
+  return issues;
+}
+function plValidated(x) {
+  return (
+    ['Validated', 'Scalable'].indexOf(x.winnerStage) > -1 &&
+    plPromotion(x).length === 0 &&
+    x.stage !== 'Archived'
+  );
+}
+function plCapacity(s) {
+  var weekly = Number(s.weeklyBudget) || 0,
+    days = Number(s.testDays) || 0,
+    cell = Number(s.cellBudget) || 0;
+  var available = (weekly * days) / 7;
+  var stats = workspaceExperimentStats({
+    baselineRate: s.baselineRate,
+    mde: s.mde,
+    confidenceTarget: s.confidence,
+  });
+  return {
+    available: available,
+    cells: cell > 0 ? Math.max(0, Math.floor(available / cell)) : 0,
+    required: stats.required,
+    estimatedArmCost: stats.required && s.expectedCpc > 0 ? stats.required * s.expectedCpc : null,
+  };
+}
+function plMarginal(x) {
+  var spend = x.afterSpend - x.beforeSpend,
+    orders = x.afterOrders - x.beforeOrders;
+  return {
+    spend: spend,
+    orders: orders,
+    cpa: spend > 0 && orders > 0 ? spend / orders : null,
+    contribution:
+      plFinite(x.beforeContribution) && plFinite(x.afterContribution)
+        ? x.afterContribution - x.beforeContribution - spend
+        : null,
+  };
+}
+function plField(f, x) {
+  var key = f[0],
+    label = f[1],
+    type = f[2] || 'text',
+    value = x[key] == null ? '' : x[key],
+    id = 'pl-f-' + key;
+  if (type === 'check')
+    return (
+      '<label class="pl-check"><input id="' +
+      id +
+      '" name="' +
+      key +
+      '" type="checkbox" ' +
+      (value ? 'checked' : '') +
+      '>' +
+      label +
+      '</label>'
+    );
+  var input;
+  if (['select', 'parent', 'asset', 'experiment'].indexOf(type) > -1) {
+    var opts =
+      type === 'select'
+        ? f[3].map((v) => [v, v])
+        : type === 'parent'
+          ? plItems()
+              .filter((i) => i.id !== x.id)
+              .map((i) => [i.id, i.name])
+          : type === 'asset'
+            ? creativeAssets.map((a) => [a.id, a.creativeId + ' · ' + a.campaign + ' · ' + a.date])
+            : experimentRecords.map((e) => [e.id, e.name]);
+    input =
+      '<select id="' +
+      id +
+      '" name="' +
+      key +
+      '">' +
+      (type === 'select' ? '' : '<option value="">None</option>') +
+      opts
+        .map(
+          (p) =>
+            '<option value="' +
+            plE(p[0]) +
+            '" ' +
+            (p[0] === value ? 'selected' : '') +
+            '>' +
+            plE(p[1]) +
+            '</option>',
+        )
+        .join('') +
+      '</select>';
+  } else if (type === 'textarea')
+    input = '<textarea id="' + id + '" name="' + key + '">' + plE(value) + '</textarea>';
+  else
+    input =
+      '<input id="' +
+      id +
+      '" name="' +
+      key +
+      '" type="' +
+      type +
+      '" ' +
+      (type === 'number' ? 'min="0" step="any" ' : '') +
+      'value="' +
+      plE(value) +
+      '">';
+  return (
+    '<label for="' +
+    id +
+    '"' +
+    (type === 'textarea' ? ' class="pl-wide"' : '') +
+    '>' +
+    label +
+    input +
+    '</label>'
+  );
+}
+function plEditor() {
+  var x = plDraft ||
+    plFind(plEditing) || {
+      stage: 'Insight',
+      winnerStage: 'Unproven',
+      format: 'Video',
+      awareness: 'Problem aware',
+      requiredRatio: '9:16',
+      outcome: 'Pending',
+    };
+  return (
+    '<details class="pl-editor" ' +
+    (plEditing || plDraft ? 'open' : '') +
+    '><summary>' +
+    (plEditing ? 'Edit ' + plE(x.name) : 'Create a pipeline brief') +
+    '</summary><form id="pl-form"><p class="pl-notice">Save a draft at any stage. Scheduled and Testing require launch readiness. Validated and Scalable require evidence. A linked performance row must cover the same test period; otherwise use manual totals.</p>' +
+    PL_FIELDS.map(
+      (g, i) =>
+        '<details class="rs-details" ' +
+        (i === 0 ? 'open' : '') +
+        '><summary>' +
+        g[0] +
+        '</summary><fieldset><div class="pl-grid">' +
+        g[1].map((f) => plField(f, x)).join('') +
+        '</div></fieldset></details>',
+    ).join('') +
+    '<p id="pl-form-errors" role="alert"></p><button class="btn p" type="submit">Save record</button> <button class="btn" type="button" data-pl="cancel">Cancel editing</button></form></details>'
+  );
+}
+function plTable(headers, rows) {
+  return (
+    '<div class="pl-table-wrap"><table class="pl-table"><thead><tr>' +
+    headers.map((h) => '<th>' + h + '</th>').join('') +
+    '</tr></thead><tbody>' +
+    (rows.length
+      ? rows.map((r) => '<tr>' + r.map((c) => '<td>' + c + '</td>').join('') + '</tr>').join('')
+      : '<tr><td colspan="' + headers.length + '">No records yet.</td></tr>') +
+    '</tbody></table></div>'
+  );
+}
+function plButton(action, id, label) {
+  return (
+    '<button class="btn sm" type="button" data-pl="' +
+    action +
+    '" data-id="' +
+    plE(id) +
+    '">' +
+    label +
+    '</button>'
+  );
+}
+function plStats(entries) {
+  return (
+    '<div class="pl-summary">' +
+    entries
+      .map((p) => '<div class="pl-stat"><span>' + p[0] + '</span><b>' + plE(p[1]) + '</b></div>')
+      .join('') +
+    '</div>'
+  );
+}
+function plDaysInStage(x) {
+  return Math.max(
+    0,
+    plDayDiff(
+      (x.stageEnteredAt || x.createdAt || new Date().toISOString()).slice(0, 10),
+      wsToday(),
+    ),
+  );
+}
+function plBoard() {
+  return (
+    '<div class="pl-board">' +
+    PL_STAGES.map((stage) => {
+      var list = plItems().filter((x) => x.stage === stage);
+      return (
+        '<div class="pl-column"><h3>' +
+        stage +
+        ' · ' +
+        list.length +
+        '</h3>' +
+        list
+          .map(
+            (x) =>
+              '<article class="pl-card"><h4>' +
+              plE(x.name) +
+              '</h4><p>' +
+              plE(x.product) +
+              ' · ' +
+              plE(x.campaign) +
+              '</p><p>' +
+              plE(x.owner || 'Unassigned') +
+              ' · ' +
+              plDaysInStage(x) +
+              ' days in stage</p><p class="' +
+              (x.due && x.due < wsToday() ? 'pl-bad' : '') +
+              '">Due ' +
+              plE(x.due || 'not set') +
+              '</p><p>' +
+              plE(x.blocker || x.winnerStage) +
+              '</p>' +
+              plButton('edit', x.id, 'Edit / move') +
+              ' ' +
+              plButton('archive', x.id, stage === 'Archived' ? 'Restore' : 'Archive') +
+              '</article>',
+          )
+          .join('') +
+        '</div>'
+      );
+    }).join('') +
+    '</div>'
+  );
+}
+function plPlanning() {
+  var s = plState().settings,
+    c = plCapacity(s),
+    scheduled = plItems().filter((x) => ['Scheduled', 'Testing'].includes(x.stage)),
+    pending = plItems().filter((x) => ['Brief', 'Production', 'Review'].includes(x.stage)),
+    hours = pending.reduce((n, x) => n + (x.estimatedHours || 0), 0);
+  var fields = [
+    ['weeklyBudget', 'Weekly test budget'],
+    ['cellBudget', 'Planned total budget per cell'],
+    ['testDays', 'Test duration, days'],
+    ['lagDays', 'Conversion lag, days'],
+    ['hours', 'Available production hours this planning window'],
+    ['hourlyRate', 'Internal hourly cost'],
+    ['baselineRate', 'Baseline binary conversion rate, %'],
+    ['mde', 'Minimum detectable relative lift, %'],
+    ['confidence', 'Confidence target (90, 95 or 99)'],
+    ['expectedCpc', 'Expected cost per eligible visitor'],
+  ];
+  return (
+    '<form id="pl-settings" class="panel"><h3>Capacity and effort planner</h3><div class="pl-grid">' +
+    fields
+      .map(
+        (f) =>
+          '<label>' +
+          f[1] +
+          '<input type="number" step="any" min="0" name="' +
+          f[0] +
+          '" value="' +
+          plE(s[f[0]]) +
+          '" required></label>',
+      )
+      .join('') +
+    '</div><button class="btn p" type="submit">Save planning assumptions</button><p id="pl-settings-error" role="alert"></p></form>' +
+    plStats([
+      ['Budget over test window', wsMoney(c.available)],
+      ['Affordable cells', c.cells],
+      ['Estimated sample per arm', c.required || 'Not estimated'],
+      [
+        'Estimated cost per arm',
+        c.estimatedArmCost ? wsMoney(c.estimatedArmCost) : 'Not estimated',
+      ],
+      ['Pending production hours', hours],
+      ['Capacity gap, hours', Math.max(0, hours - (s.hours || 0))],
+    ]) +
+    '<p class="pl-notice">Cell capacity is budget arithmetic, not proof of statistical power. Sample planning assumes independent binary outcomes, approximately 80% power, and the specified confidence. It does not establish confidence for CPA or ROAS. Do not launch every affordable cell if its evidence requirement cannot be funded.</p><h3>Launch calendar and budget load</h3>' +
+    plTable(
+      ['Item', 'Test window', 'Read after', 'Daily planned spend', 'State'],
+      scheduled.map((x) => {
+        var days = plDayDiff(x.scheduledStart, x.scheduledEnd) + 1;
+        return [
+          plE(x.name),
+          plE(x.scheduledStart + ' → ' + x.scheduledEnd),
+          plE(x.readAfter),
+          days > 0 ? wsMoney(x.cellBudget / days) : 'Invalid dates',
+          plReadiness(x).length ? 'Needs recheck' : 'Ready',
+        ];
+      }),
+    ) +
+    '<h3>Daily load, next 14 days</h3>' +
+    plTable(
+      ['Date', 'Allocated', 'Planning allowance', 'Status'],
+      Array.from({ length: 14 }, (_, i) => {
+        var day = wsShift(wsToday(), i),
+          sum = scheduled.reduce(
+            (n, x) =>
+              n +
+              (x.scheduledStart <= day && x.scheduledEnd >= day
+                ? x.cellBudget / (plDayDiff(x.scheduledStart, x.scheduledEnd) + 1)
+                : 0),
+            0,
+          );
+        return [
+          day,
+          wsMoney(sum),
+          wsMoney(s.weeklyBudget / 7),
+          sum > s.weeklyBudget / 7 ? 'Over capacity' : 'Within allowance',
+        ];
+      }),
+    ) +
+    '<h3>Effort and production cost</h3>' +
+    plTable(
+      ['Brief', 'Estimated / actual hours', 'Revisions', 'Estimated full cost'],
+      pending.map((x) => [
+        plE(x.name),
+        (x.estimatedHours || 0) + ' / ' + (x.actualHours || 0),
+        x.revisionRounds || 0,
+        wsMoney((x.estimatedHours || 0) * (s.hourlyRate || 0) + (x.creatorCost || 0)),
+      ]),
+    )
+  );
+}
+function plChecks() {
+  return (
+    '<h3>Launch readiness and asset specifications</h3>' +
+    plTable(
+      ['Brief', 'Launch gate', 'Specification issues', 'Action'],
+      plItems()
+        .filter((x) => x.stage !== 'Archived')
+        .map((x) => {
+          var issues = plReadiness(x);
+          return [
+            plE(x.name),
+            issues.length
+              ? '<span class="pl-bad">' + plE(issues.join('; ')) + '</span>'
+              : '<span class="pl-good">Ready to test</span>',
+            plE(plSpecs(x).join('; ') || 'Declared checks complete'),
+            plButton('edit', x.id, 'Resolve'),
+          ];
+        }),
+    ) +
+    '<h3>Delivery-quality monitor</h3><p>Compare recorded test totals with planned exposure. Delivery warnings are not creative-loss verdicts.</p>' +
+    plTable(
+      ['Test', 'Spend / planned', 'Impressions / minimum', 'Readiness to evaluate', 'Source'],
+      plItems()
+        .filter((x) => ['Testing', 'Learning'].includes(x.stage))
+        .map((x) => {
+          var m = plMetrics(x),
+            enough = m.spend >= x.minimumSpend && m.impressions >= x.minimumExposure,
+            issues = [];
+          if (!enough) issues.push('Insufficient exposure');
+          if (!x.readAfter || x.readAfter > wsToday()) issues.push('Read window not mature');
+          if (x.deliveryIssue) issues.push(x.deliveryIssue);
+          if (x.maxLoss > 0 && m.contribution != null && m.spend - m.contribution >= x.maxLoss)
+            issues.push('Loss limit reached: review / stop');
+          return [
+            plE(x.name),
+            wsMoney(m.spend) + ' / ' + wsMoney(x.cellBudget),
+            (m.impressions == null ? 'Missing' : m.impressions) +
+              ' / ' +
+              (x.minimumExposure || 'Missing'),
+            plE(issues.join('; ') || 'Ready for evidence review'),
+            plE(m.source),
+          ];
+        }),
+    )
+  );
+}
+function plLearning() {
+  var items = plItems(),
+    matrix = {};
+  items
+    .filter((x) => x.stage !== 'Archived')
+    .forEach((x) => {
+      var k = [
+        x.motivation || 'Unclassified',
+        x.awareness || 'Unclassified',
+        x.angle || 'Unclassified',
+        x.format || 'Unclassified',
+      ].join(' / ');
+      if (!matrix[k]) matrix[k] = { count: 0, winners: 0 };
+      matrix[k].count++;
+      if (plValidated(x)) matrix[k].winners++;
+    });
+  return (
+    '<h3>Creative diversity matrix</h3><p>Observed combinations only. Repeated executions do not establish that the underlying concept causes better performance.</p>' +
+    plTable(
+      ['Motivation / awareness / angle / format', 'Executions', 'Validated winners'],
+      Object.keys(matrix).map((k) => [plE(k), matrix[k].count, matrix[k].winners]),
+    ) +
+    '<h3>Learning library and next briefs</h3>' +
+    plTable(
+      ['Creative', 'Finding / explanation', 'Limitations', 'Preserve / change', 'Next action'],
+      items
+        .filter((x) => x.finding)
+        .map((x) => [
+          plE(x.name),
+          plE(x.finding) + '<br>' + plE(x.explanation),
+          plE(x.limitations),
+          plE(x.preserve) + '<br>' + plE(x.change),
+          plButton('iterate', x.id, 'Build next brief'),
+        ]),
+    ) +
+    '<h3>Creative lineage</h3>' +
+    items
+      .map((x) => {
+        var parent = plFind(x.parentId);
+        return (
+          '<div class="pl-lineage">' +
+          (parent ? plE(parent.name) + ' → ' : '') +
+          '<b>' +
+          plE(x.name) +
+          '</b> · ' +
+          plE(x.winnerStage) +
+          ' ' +
+          plButton('edit', x.id, 'Open') +
+          '</div>'
+        );
+      })
+      .join('') +
+    '<h3>Retest queue</h3>' +
+    plTable(
+      ['Creative', 'Why prior test could not answer', 'Revised plan', 'Action'],
+      items
+        .filter((x) => x.retestReason)
+        .map((x) => [
+          plE(x.name),
+          plE(x.retestReason),
+          plE(x.retestPlan),
+          plButton('retest', x.id, 'Prepare retest'),
+        ]),
+    )
+  );
+}
+function plCoverage(items) {
+  var active = items.filter(
+      (x) => x.stage !== 'Archived' && PL_WINNERS.indexOf(x.winnerStage) >= 2,
+    ),
+    used = new Set();
+  return active.map((x) => {
+    var r = items.find(
+      (y) =>
+        y.id !== x.id &&
+        !used.has(y.id) &&
+        y.replacementFor === x.id &&
+        y.product === x.product &&
+        y.campaign === x.campaign &&
+        plValidated(y),
+    );
+    if (r) used.add(r.id);
+    return { item: x, replacement: r };
+  });
+}
+function plScaling() {
+  var items = plItems(),
+    coverage = plCoverage(items),
+    total = items
+      .filter((x) => x.stage !== 'Archived')
+      .reduce((n, x) => n + (plMetrics(x).spend || 0), 0);
+  return (
+    '<h3>Winner progression and commercial evidence</h3>' +
+    plTable(
+      [
+        'Creative',
+        'Declared stage',
+        'Current validation',
+        'Backend CPA',
+        'Contribution after media',
+        'Evidence',
+      ],
+      items
+        .filter((x) => x.stage !== 'Archived')
+        .map((x) => {
+          var m = plMetrics(x),
+            err = plPromotion(x);
+          return [
+            plE(x.name),
+            plE(x.winnerStage),
+            err.length
+              ? plE(err.join('; '))
+              : plValidated(x)
+                ? 'Evidence clears recorded gates'
+                : 'Not validated',
+            m.orders > 0 ? wsMoney(m.spend / m.orders) : 'No valid orders',
+            m.contribution == null ? 'Missing' : wsMoney(m.contribution - m.spend),
+            plButton('edit', x.id, 'Review evidence'),
+          ];
+        }),
+    ) +
+    '<h3>Replacement coverage</h3><p>Replacements must be explicitly assigned, match product and campaign, and clear current validation. Each replacement covers one item.</p>' +
+    plTable(
+      ['Winner', 'Assigned validated replacement', 'Action'],
+      coverage.map((c) => [
+        plE(c.item.name),
+        c.replacement ? plE(c.replacement.name) : '<span class="pl-bad">Coverage gap</span>',
+        plButton('iterate', c.item.id, 'Brief replacement'),
+      ]),
+    ) +
+    '<h3>Spend concentration</h3><p>Uses the linked or manual test totals. Compare matching, non-overlapping periods before interpreting exposure.</p>' +
+    plTable(
+      ['Creative', 'Spend', 'Share', 'Replacement'],
+      items
+        .filter((x) => x.stage !== 'Archived')
+        .map((x) => {
+          var m = plMetrics(x),
+            covered = coverage.find((c) => c.item.id === x.id);
+          return [
+            plE(x.name),
+            wsMoney(m.spend),
+            total ? (((m.spend || 0) / total) * 100).toFixed(1) + '%' : '—',
+            covered && covered.replacement ? 'Covered' : 'No assigned validated replacement',
+          ];
+        }),
+    ) +
+    '<h3>Budget-change evaluator</h3><p>Before / after differences are descriptive, not causal lift. Use equal-duration windows and record simultaneous changes.</p>' +
+    plTable(
+      [
+        'Creative',
+        'Added spend / orders',
+        'Marginal CPA',
+        'Added contribution after media',
+        'Limitations',
+      ],
+      items
+        .filter(
+          (x) =>
+            x.windowDays > 0 &&
+            plFinite(x.beforeSpend) &&
+            plFinite(x.afterSpend) &&
+            plFinite(x.beforeOrders) &&
+            plFinite(x.afterOrders),
+        )
+        .map((x) => {
+          var m = plMarginal(x);
+          return [
+            plE(x.name),
+            wsMoney(m.spend) + ' / ' + m.orders,
+            m.cpa == null ? 'No positive incremental efficiency' : wsMoney(m.cpa),
+            wsMoney(m.contribution),
+            plE(x.scaleConfounds || 'Not documented'),
+          ];
+        }),
+    )
+  );
+}
+function plMedian(list) {
+  if (!list.length) return null;
+  var a = list.slice().sort((a, b) => a - b),
+    i = Math.floor(a.length / 2);
+  return a.length % 2 ? a[i] : (a[i - 1] + a[i]) / 2;
+}
+function plReport() {
+  var items = plItems(),
+    s = plState().settings,
+    now = wsToday(),
+    start = wsShift(now, -6),
+    active = items.filter((x) => x.stage !== 'Archived'),
+    winners = active.filter(plValidated),
+    completed = items.filter((x) => x.outcome !== 'Pending'),
+    usable = completed.filter((x) => x.readComplete && ['Win', 'Loss'].includes(x.outcome)),
+    spend = items.reduce(
+      (n, x) =>
+        n +
+        (plMetrics(x).spend || 0) +
+        (x.actualHours || 0) * (s.hourlyRate || 0) +
+        (x.creatorCost || 0),
+      0,
+    ),
+    cycle = items
+      .filter((x) => x.launchedAt && x.createdAt)
+      .map((x) => plDayDiff(x.createdAt.slice(0, 10), x.launchedAt.slice(0, 10))),
+    due = items.filter((x) => x.due >= start && x.due <= now),
+    delivered = due.filter((x) => x.approvedAt && x.approvedAt <= x.due && x.copyApproved),
+    coverage = plCoverage(items),
+    coveredSpend = coverage.reduce(
+      (n, c) => n + (c.replacement ? plMetrics(c.item).spend || 0 : 0),
+      0,
+    ),
+    winnerSpend = coverage.reduce((n, c) => n + (plMetrics(c.item).spend || 0), 0);
+  return (
+    plStats([
+      ['Due this week / on-time approved', due.length + ' / ' + delivered.length],
+      ['Median brief-to-launch days', plMedian(cycle) == null ? '—' : plMedian(cycle)],
+      ['Usable / completed tests', usable.length + ' / ' + completed.length],
+      ['Currently validated winners', winners.length],
+      [
+        'Cost per current validated winner',
+        winners.length ? wsMoney(spend / winners.length) : 'No winners',
+      ],
+      [
+        'Scalable / validated',
+        winners.filter((x) => x.winnerStage === 'Scalable').length + ' / ' + winners.length,
+      ],
+      [
+        'Winner spend with replacement coverage',
+        winnerSpend ? ((coveredSpend / winnerSpend) * 100).toFixed(0) + '%' : '—',
+      ],
+    ]) +
+    '<p class="pl-notice">Weekly delivery uses the last seven calendar days. Other metrics use all recorded pipeline history. Cost includes recorded test media, actual hours at the current planning rate and external production costs. Inconclusive and risk-stopped tests remain in the completed-test denominator. These are operational metrics, not causal estimates.</p><h3>Production bottlenecks</h3>' +
+    plTable(
+      ['Stage', 'Items', 'Median current age, days', 'Overdue', 'Blocked', 'Revision rounds'],
+      PL_STAGES.filter((s) => s !== 'Archived').map((stage) => {
+        var a = active.filter((x) => x.stage === stage);
+        return [
+          stage,
+          a.length,
+          plMedian(a.map(plDaysInStage)) == null ? '—' : plMedian(a.map(plDaysInStage)),
+          a.filter((x) => x.due && x.due < now).length,
+          a.filter((x) => x.blocker).length,
+          a.reduce((n, x) => n + (x.revisionRounds || 0), 0),
+        ];
+      }),
+    ) +
+    '<h3>Approval turnaround history</h3>' +
+    plTable(
+      ['Creative', 'Days from first review to approval', 'Revisions'],
+      items
+        .filter((x) => x.approvedAt)
+        .map((x) => {
+          var review = (x.history || []).find((e) => e.stage === 'Review');
+          return [
+            plE(x.name),
+            review
+              ? Math.max(0, plDayDiff(review.at.slice(0, 10), x.approvedAt))
+              : 'No review entry recorded',
+            x.revisionRounds || 0,
+          ];
+        }),
+    ) +
+    '<h3>Recent stage history</h3>' +
+    plTable(
+      ['Creative', 'Stage', 'Entered'],
+      items
+        .flatMap((x) => (x.history || []).map((h) => [plE(x.name), plE(h.stage), plE(h.at)]))
+        .slice(-50),
+    )
+  );
+}
+function renderPipeline() {
+  var root = $('pipeline-app');
+  if (!root) return;
+  var restart = typeof rsPlan === 'function',
+    tabs = (
+      restart
+        ? [
+            ['restart', '1 · Restart plan'],
+            ['cells', '2 · Concept cells'],
+          ]
+        : []
+    ).concat(
+      [
+        ['board', '3 · Production board'],
+        ['checks', '4 · Readiness'],
+        ['learning', '5 · Learnings'],
+        ['scaling', '6 · Winner validation'],
+      ],
+      restart ? [['gate', '7 · Day-90 gate']] : [],
+      [
+        ['planning', 'Capacity planner'],
+        ['report', 'Pipeline dashboard'],
+      ],
+    );
+  var views = {
+    board: plBoard,
+    planning: plPlanning,
+    checks: plChecks,
+    learning: plLearning,
+    scaling: plScaling,
+    report: plReport,
+  };
+  if (restart) Object.assign(views, { restart: rsPlan, cells: rsCellsView, gate: rsGateView });
+  root.innerHTML =
+    '<div class="pl-tabs" aria-label="Creative testing workspaces">' +
+    tabs
+      .map(
+        (t) =>
+          '<button class="btn" data-tab="' +
+          t[0] +
+          '" aria-pressed="' +
+          (plTab === t[0]) +
+          '">' +
+          t[1] +
+          '</button>',
+      )
+      .join('') +
+    '</div>' +
+    (['restart', 'cells', 'gate'].includes(plTab) ? '' : plEditor()) +
+    (views[plTab] || plBoard)() +
+    '<details class="rs-details"><summary>Import and export tools</summary><div class="pl-toolbar"><button class="btn" data-pl="import-ideas">Bring in existing backlog</button><button class="btn" data-pl="import-assets">Bring in performance assets</button><button class="btn" data-pl="export">Export pipeline JSON</button><button class="btn" data-pl="report">Download pipeline report</button></div><p>Use Export session for a complete restorable backup, including restart decisions and daily evidence.</p></details>';
+}
+function plChanged(action, item) {
+  workspaceAudit('Creative', action, item.name, item.id);
+  if (TWC.store) TWC.store.schedule('pipeline change');
+  renderPipeline();
+}
+function plCycle(id, parentId) {
+  var seen = new Set([id]);
+  while (parentId) {
+    if (seen.has(parentId)) return true;
+    seen.add(parentId);
+    var p = plFind(parentId);
+    parentId = p && p.parentId;
+  }
+  return false;
+}
+function plSave(form) {
+  var x = {},
+    data = new FormData(form),
+    errors = [];
+  PL_FIELDS.forEach((g) => {
+    g[1].forEach((f) => {
+      var val = data.get(f[0]);
+      x[f[0]] =
+        f[2] === 'check' ? data.has(f[0]) : f[2] === 'number' ? plN(val) : String(val || '').trim();
+      if (f[2] === 'number' && x[f[0]] != null && (!plFinite(x[f[0]]) || x[f[0]] < 0))
+        errors.push(f[1] + ' must be nonnegative');
+      if (f[2] === 'date' && x[f[0]] && !plValidDate(x[f[0]]))
+        errors.push(f[1] + ' must be a valid date');
+    });
+  });
+  if (!x.name || !x.product || !x.owner) errors.push('Name, product and owner are required');
+  var existing = plFind(plEditing),
+    id = existing ? existing.id : wsId('pipeline');
+  if (plCycle(id, x.parentId)) errors.push('Parent would create a lineage cycle');
+  if (x.replacementFor === id) errors.push('A creative cannot replace itself');
+  var linked = plAsset(x);
+  if (
+    linked &&
+    (linked.campaign !== x.campaign || (linked.product && linked.product !== x.product))
+  )
+    errors.push('Linked performance must match this campaign and product');
+  if (x.assetId && plItems().some((i) => i.id !== id && i.assetId === x.assetId))
+    errors.push('This performance row is already linked to another pipeline item');
+  if (x.orders != null && x.refunds > x.orders) errors.push('Refunds exceed valid orders');
+  if (x.orders != null && x.newCustomers > x.orders)
+    errors.push('New customers exceed valid orders');
+  if (['Scheduled', 'Testing'].includes(x.stage)) errors = errors.concat(plReadiness(x));
+  errors = errors.concat(plPromotion(x));
+  if (errors.length) {
+    $('pl-form-errors').textContent = errors.join('. ');
+    return;
+  }
+  var at = new Date().toISOString();
+  x.id = id;
+  x.createdAt = existing ? existing.createdAt : at;
+  x.updatedAt = at;
+  x.history = existing ? (existing.history || []).slice() : [];
+  x.stageEnteredAt = existing ? existing.stageEnteredAt : at;
+  x.launchedAt = (existing && existing.launchedAt) || '';
+  if (!existing || existing.stage !== x.stage) {
+    x.history.push({ stage: x.stage, at: at });
+    x.stageEnteredAt = at;
+    if (x.stage === 'Testing' && !x.launchedAt) x.launchedAt = at;
+  }
+  if (existing) Object.assign(existing, x);
+  else plItems().push(x);
+  plEditing = '';
+  plDraft = null;
+  plChanged(existing ? 'Pipeline updated' : 'Pipeline created', x);
+}
+function plImport(kind) {
+  var source = kind === 'ideas' ? creativeIdeas : creativeAssets,
+    count = 0;
+  source.forEach((a) => {
+    if (
+      plItems().some(
+        (x) => x.sourceId === kind + ':' + a.id || (kind === 'assets' && x.assetId === a.id),
+      )
+    )
+      return;
+    var at = new Date().toISOString();
+    plItems().push({
+      id: wsId('pipeline'),
+      sourceId: kind + ':' + a.id,
+      name: a.creativeId || a.concept || 'Imported brief',
+      product: a.product || '',
+      campaign: a.campaign || '',
+      concept: a.concept || '',
+      angle: a.angle || '',
+      hook: a.hook || '',
+      creator: a.creator || '',
+      format: /static/i.test(a.format) ? 'Static' : 'Video',
+      owner: a.assignee || '',
+      hypothesis: a.pain ? 'If ' + a.concept + ', then ' + a.outcome + ' because ' + a.pain : '',
+      assetId: kind === 'assets' ? a.id : '',
+      stage: 'Insight',
+      winnerStage: 'Unproven',
+      outcome: 'Pending',
+      createdAt: at,
+      stageEnteredAt: at,
+      history: [{ stage: 'Insight', at: at }],
+    });
+    count++;
+  });
+  plChanged('Imported ' + count + ' pipeline drafts', { name: kind, id: '' });
+}
+function plNext(id, retest) {
+  var x = plFind(id);
+  if (!x) return;
+  if (retest && (!x.retestReason || !x.retestPlan)) {
+    alert('Record a retest reason and revised plan first.');
+    return;
+  }
+  plEditing = '';
+  plDraft = {
+    name: x.name + (retest ? ' · retest' : ' · iteration'),
+    restartCell: x.restartCell || '',
+    creativeStyle: x.creativeStyle || '',
+    product: x.product,
+    campaign: x.campaign,
+    concept: x.concept,
+    angle: x.angle,
+    hook: x.hook,
+    format: x.format,
+    owner: x.owner,
+    awareness: x.awareness,
+    motivation: x.motivation,
+    offer: x.offer,
+    parentId: x.id,
+    replacementFor: retest ? '' : x.id,
+    hypothesis: retest ? x.retestPlan : x.nextHypothesis,
+    preserve: x.preserve,
+    change: x.change,
+    limitations: retest ? x.retestReason : '',
+    stage: 'Brief',
+    winnerStage: 'Unproven',
+    outcome: 'Pending',
+    requiredRatio: x.requiredRatio,
+  };
+  renderPipeline();
+}
+function bindPipeline() {
+  var root = $('pipeline-app');
+  if (!root) return;
+  root.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (e.target.id === 'pl-form') plSave(e.target);
+    if (e.target.id === 'pl-settings') {
+      var values = Object.fromEntries(new FormData(e.target)),
+        valid = true;
+      Object.keys(values).forEach((k) => {
+        values[k] = Number(values[k]);
+        if (!Number.isFinite(values[k]) || values[k] < 0) valid = false;
+      });
+      if (
+        !valid ||
+        !(
+          values.cellBudget > 0 &&
+          values.testDays >= 1 &&
+          Number.isInteger(values.testDays) &&
+          values.baselineRate > 0 &&
+          values.baselineRate < 100 &&
+          values.mde > 0 &&
+          [90, 95, 99].includes(values.confidence)
+        )
+      ) {
+        $('pl-settings-error').textContent =
+          'Use positive cell budget, whole test days, a baseline between 0 and 100, positive MDE, and confidence 90, 95 or 99.';
+        return;
+      }
+      plState().settings = values;
+      plChanged('Pipeline assumptions updated', { name: 'Capacity planner', id: '' });
+    }
+  });
+  root.addEventListener('click', (e) => {
+    var b = e.target.closest('button');
+    if (!b) return;
+    if (b.dataset.tab) {
+      if ((plEditing || plDraft) && !confirm('Leave this unsaved draft?')) return;
+      plEditing = '';
+      plDraft = null;
+      plTab = b.dataset.tab;
+      renderPipeline();
+      return;
+    }
+    var action = b.dataset.pl,
+      id = b.dataset.id,
+      x = plFind(id);
+    if (action === 'edit') {
+      plEditing = id;
+      plDraft = null;
+      renderPipeline();
+      $('pl-f-name').focus();
+    }
+    if (action === 'cancel') {
+      plEditing = '';
+      plDraft = null;
+      renderPipeline();
+    }
+    if (
+      action === 'archive' &&
+      x &&
+      confirm(
+        x.stage === 'Archived'
+          ? 'Restore as an Insight draft?'
+          : 'Archive this pipeline record? History is retained.',
+      )
+    ) {
+      x.stage = x.stage === 'Archived' ? 'Insight' : 'Archived';
+      x.stageEnteredAt = new Date().toISOString();
+      x.history = x.history || [];
+      x.history.push({ stage: x.stage, at: x.stageEnteredAt });
+      plChanged('Pipeline ' + x.stage.toLowerCase(), x);
+    }
+    if (action === 'import-ideas') plImport('ideas');
+    if (action === 'import-assets') plImport('assets');
+    if (action === 'iterate') plNext(id, false);
+    if (action === 'retest') plNext(id, true);
+    if (action === 'export')
+      dl(
+        new Blob([JSON.stringify(plState(), null, 2)], { type: 'application/json' }),
+        'twc-console-pipeline-' + wsToday() + '.json',
+      );
+    if (action === 'report') {
+      var box = document.createElement('div');
+      box.innerHTML = plReport();
+      dl(
+        new Blob(['Pipeline report · ' + wsToday() + '\n\n' + (box.innerText || box.textContent)], {
+          type: 'text/plain',
+        }),
+        'twc-pipeline-report-' + wsToday() + '.txt',
+      );
+    }
+  });
+}
+bindPipeline();
