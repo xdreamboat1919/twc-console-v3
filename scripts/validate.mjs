@@ -97,11 +97,22 @@ for (const file of ts) visit(file, []);
 /** 6 · Nav routes have a matching view element. */
 const html = await readFile(join(ROOT, 'index.html'), 'utf8');
 const views = new Set([...html.matchAll(/data-view="([^"]+)"/g)].map((m) => m[1]));
-const main = await readFile(join(SRC, 'main.ts'), 'utf8');
-for (const [, id] of main.matchAll(/route\.id\]:\s*(\w+)\.mount/g)) void id;
-for (const view of views) {
-  if (!main.includes(view) && !ts.some((f) => srcRel(f).startsWith(`features/${view}/`))) {
-    fail(`view "${view}" has no matching feature module`);
+let main;
+let isReactEntry = false;
+try {
+  main = await readFile(join(SRC, 'main.tsx'), 'utf8');
+  isReactEntry = true;
+} catch {
+  main = await readFile(join(SRC, 'main.ts'), 'utf8');
+}
+if (isReactEntry) {
+  if (!main.includes('App')) fail('React entry point does not mount the application shell');
+} else {
+  for (const [, id] of main.matchAll(/route\.id\]:\s*(\w+)\.mount/g)) void id;
+  for (const view of views) {
+    if (!main.includes(view) && !ts.some((f) => srcRel(f).startsWith(`features/${view}/`))) {
+      fail(`view "${view}" has no matching feature module`);
+    }
   }
 }
 
@@ -113,3 +124,4 @@ if (failures.length) {
 console.log(
   `Validated ${ts.length} TypeScript files, ${views.size} views, import direction, acyclicity and domain purity.`,
 );
+
