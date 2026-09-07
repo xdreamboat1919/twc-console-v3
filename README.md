@@ -1,7 +1,8 @@
 # TWC Campaign Console
 
-A private, manual-first performance marketing operating system. Static
-application, no backend, no live platform integrations.
+A private, manual-first performance marketing operating system. The v2
+workspace uses React and Tailwind CSS, keeps its working data on the local
+machine, and has no hosted backend or live platform integrations.
 
 ## Quick start
 
@@ -10,8 +11,22 @@ npm ci
 npm run dev          # http://127.0.0.1:8000
 ```
 
-In GitHub: **Code → Codespaces → Create codespace**. The dev container installs
-and starts the console. Confirm port `8000` is **Private**.
+Use Node 20.19 or newer. The console is intended to run locally rather than as
+a public GitHub Pages site.
+
+### Local AI chat
+
+The campaign copilot calls [Ollama](https://ollama.com/) at
+`http://127.0.0.1:11434` by default. Install Ollama and download a local model
+such as `llama3.2` before using the chat. The model and endpoint can be changed
+without committing secrets:
+
+```bash
+VITE_OLLAMA_URL=http://127.0.0.1:11434
+VITE_OLLAMA_MODEL=llama3.2
+```
+
+The chat gracefully explains what to do when the local model is unavailable.
 
 ## Commands
 
@@ -31,13 +46,13 @@ Run `npm run verify` before opening a pull request.
 
 ```
 src/
-  main.ts            entry
-  app/               router, shell
-  core/              dom, format
+  main.tsx           React entry
+  app/               dashboard shell and reusable dashboard components
+  platform/          local AI and browser-specific boundaries
   domain/            pure decision logic · tested · no DOM
-  features/          state and rendering
+  features/          feature state retained during migration
   services/          store, session, data-source
-  styles/
+  styles/            Tailwind entry point and legacy styles
 scripts/validate.mjs
 ```
 

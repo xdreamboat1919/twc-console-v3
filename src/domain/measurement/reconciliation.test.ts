@@ -43,7 +43,7 @@ describe('reconcile', () => {
     expect(under.status).toBe('counting-fault');
   });
 
-  it('does not divide by zero on an empty back end', () => {
+  it('flags non-zero platform totals against an empty back end as a counting fault', () => {
     const r = reconcile({
       platformOrders: 10,
       platformRevenue: 100,
@@ -51,6 +51,19 @@ describe('reconcile', () => {
       backendRevenue: 0,
     });
     expect(Number.isFinite(r.orderDeltaPct)).toBe(true);
+    expect(r.orderDeltaPct).toBe(100);
+    expect(r.revenueDeltaPct).toBe(100);
+    expect(r.status).toBe('counting-fault');
+  });
+
+  it('treats zero totals in both systems as reconciled', () => {
+    const r = reconcile({
+      platformOrders: 0,
+      platformRevenue: 0,
+      backendOrders: 0,
+      backendRevenue: 0,
+    });
+    expect(r.status).toBe('normal');
   });
 });
 

@@ -25,6 +25,8 @@ async function walk(dir) {
 const files = await walk(SRC);
 const ts = files.filter((f) => f.endsWith('.ts'));
 const rel = (f) => relative(ROOT, f);
+const srcRel = (f) => relative(SRC, f).replaceAll('\\', '/');
+const isDomainFile = (f) => srcRel(f).startsWith('domain/');
 
 /** 1 · Line length. Prevents the 51KB single line returning. */
 for (const file of ts) {
@@ -43,7 +45,7 @@ const FORBIDDEN = [
   /\bindexedDB\s*[.[]/,
   /\bfetch\s*\(/,
 ];
-for (const file of ts.filter((f) => f.includes(`${'domain'}/`))) {
+for (const file of ts.filter(isDomainFile)) {
   const src = await readFile(file, 'utf8');
   for (const pattern of FORBIDDEN) {
     if (pattern.test(src))
@@ -53,7 +55,7 @@ for (const file of ts.filter((f) => f.includes(`${'domain'}/`))) {
 
 /** 3 · Import direction. Domain may not depend on features, services or core. */
 const importsOf = (src) => [...src.matchAll(/from\s+['"]([^'"]+)['"]/g)].map((m) => m[1]);
-for (const file of ts.filter((f) => f.includes(`${'domain'}/`))) {
+for (const file of ts.filter(isDomainFile)) {
   for (const spec of importsOf(await readFile(file, 'utf8'))) {
     if (/^@(features|services|core)\//.test(spec) || spec.includes('../../features')) {
       fail(`${rel(file)} imports ${spec} — domain must not depend on outer layers`);
@@ -63,7 +65,7 @@ for (const file of ts.filter((f) => f.includes(`${'domain'}/`))) {
 
 /** 4 · Every domain module has a colocated test. */
 for (const file of ts) {
-  if (!file.includes(`${'domain'}/`) || file.endsWith('.test.ts')) continue;
+  if (!isDomainFile(file) || file.endsWith('.test.ts')) continue;
   if (/(types|index)\.ts$/.test(file)) continue;
   if (!ts.includes(file.replace(/\.ts$/, '.test.ts'))) fail(`${rel(file)} has no colocated test`);
 }
@@ -98,7 +100,7 @@ const views = new Set([...html.matchAll(/data-view="([^"]+)"/g)].map((m) => m[1]
 const main = await readFile(join(SRC, 'main.ts'), 'utf8');
 for (const [, id] of main.matchAll(/route\.id\]:\s*(\w+)\.mount/g)) void id;
 for (const view of views) {
-  if (!main.includes(view) && !ts.some((f) => f.includes(`features/${view}`))) {
+  if (!main.includes(view) && !ts.some((f) => srcRel(f).startsWith(`features/${view}/`))) {
     fail(`view "${view}" has no matching feature module`);
   }
 }

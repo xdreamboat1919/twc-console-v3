@@ -28,7 +28,13 @@ export const NORMAL_DELTA_PCT = 15;
 export const FAULT_DELTA_PCT = 30;
 export const DIVERGENCE_PCT = 10;
 
-const pctDelta = (a: number, b: number): number => (b === 0 ? 0 : ((a - b) / b) * 100);
+/**
+ * A non-zero platform total against a zero back-end total is a complete
+ * mismatch, not a zero-percent delta. Keep the result finite so callers can
+ * render and compare it normally.
+ */
+const pctDelta = (a: number, b: number): number =>
+  b === 0 ? (a === 0 ? 0 : Math.sign(a) * 100) : ((a - b) / b) * 100;
 
 export function reconcile(i: ReconciliationInput): ReconciliationResult {
   const orderDeltaPct = pctDelta(i.platformOrders, i.backendOrders);
