@@ -1,3 +1,6 @@
+Warning: truncated output (original token count: 21178)
+Total output lines: 344
+
 /* Campaign Console 2.0 production workspaces. Manual-first; integration-ready. */
 var WORKSPACE_DEFAULT_RULES={
   orderMismatchCritical:25,orderMismatchHigh:15,cpaHighMultiplier:1.25,roasLowMultiplier:.8,
@@ -29,7 +32,7 @@ var workspaceEditing={account:'',product:'',campaign:'',target:'',audience:'',me
 var workspacePendingImport=null;
 
 function wsId(prefix){return prefix+'-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8)}
-function wsEsc(value){return String(value==null?'':value).replace(/[&<>"']/g,(c)=> {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])}
+function wsEsc(value){return String(value==null?'':value).replace(/[&<>"']/g,(c)=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function wsToday(){var d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)}
 function wsShift(iso,days){var d=new Date((iso||wsToday())+'T12:00:00');d.setDate(d.getDate()+days);return d.toISOString().slice(0,10)}
 function wsNum(value){if(value===null||value===undefined||String(value).trim()==='')return null;var n=Number(String(value).replace(/[$,%\s]/g,''));return isFinite(n)?n:null}
@@ -212,19 +215,7 @@ function renderEntityOptions(){
 }
 function renderRules(){
   if(!$('ws-rule-rows'))return;renderScopeOptions('rule');
-  var defaults=Object.keys(WORKSPACE_DEFAULT_RULES).map((key)=> ({id:'',key:key,value:WORKSPACE_DEFAULT_RULES[key],scope:'Workspace default',scopeId:'',source:'Built-in default'})),rows=defaults.concat(workspaceState.rules);
-  $('ws-rule-rows').innerHTML=rows.map((rule)=> '<tr><td><span class="row-title">'+wsEsc(WORKSPACE_RULE_LABELS[rule.key]||rule.key)+'</span></td><td class="num">'+wsEsc(rule.value)+'</td><td>'+wsEsc(rule.scope)+(rule.scopeId?'<span class="row-meta">'+wsEsc(wsEntityName(rule.scopeId))+'</span>':'')+'</td><td>'+wsEsc(rule.source||'Workspace override')+'</td><td>'+(rule.id?'<div class="inline-actions"><button type="button" class="danger" data-rule-remove="'+rule.id+'">Remove override</button></div>':'—')+'</td></tr>').join('');
-}
-function renderWorkspace(){
-  if(!$('ws-account-rows'))return;workspaceNormalizeDaily();renderEntityOptions();
-  $('ws-account-count').textContent=workspaceState.accounts.filter((x)=> x.status!=='Archived').length;$('ws-product-count').textContent=workspaceState.products.filter((x)=> x.status!=='Archived').length;$('ws-campaign-count').textContent=workspaceState.campaigns.filter((x)=> x.status!=='Archived').length;$('ws-unmatched-count').textContent=dailyRecords.filter((r)=> !r.accountId||!r.campaignId).length;
-  $('ws-account-rows').innerHTML=workspaceState.accounts.length?workspaceState.accounts.map((x)=> '<tr><td><span class="row-title">'+wsEsc(x.name)+'</span><span class="row-meta">'+wsEsc(x.externalId||'No platform ID')+'</span></td><td>'+wsEsc(x.platform)+'</td><td>'+wsEsc(x.market||'Not set')+'</td><td>'+wsStatusBadge(x.status)+'</td><td><code>'+wsEsc(x.id)+'</code></td><td>'+wsActionButtons('account',x.id,x.status==='Archived')+'</td></tr>').join(''):wsEmpty(6,'No accounts yet','Add an account or save a performance row to create it automatically.');
-  $('ws-product-rows').innerHTML=workspaceState.products.length?workspaceState.products.map((x)=> '<tr><td><span class="row-title">'+wsEsc(x.name)+'</span><span class="row-meta">'+wsEsc(x.code||x.id)+'</span></td><td>AOV '+wsMoney(x.aov)+'<span class="row-meta">Margin '+wsPct(x.margin,0)+'</span></td><td>'+((x.inventory==null?'Not set':x.inventory+' days'))+'</td><td>'+wsStatusBadge(x.status)+'</td><td>'+wsActionButtons('product',x.id,x.status==='Archived')+'</td></tr>').join(''):wsEmpty(5,'No products yet','Create the product or commercial lane.');
-  $('ws-campaign-rows').innerHTML=workspaceState.campaigns.length?workspaceState.campaigns.map((x)=> '<tr><td><span class="row-title">'+wsEsc(x.name)+'</span><span class="row-meta">'+wsEsc(x.externalId||x.id)+'</span></td><td>'+wsEsc(wsEntityName(x.accountId))+'<span class="row-meta">'+wsEsc(wsEntityName(x.productId))+'</span></td><td>'+wsEsc(x.stage)+'</td><td>'+wsStatusBadge(x.status)+'</td><td>'+wsActionButtons('campaign',x.id,x.status==='Archived')+'</td></tr>').join(''):wsEmpty(5,'No campaigns yet','Create a campaign under an account.');
-  $('ws-target-rows').innerHTML=workspaceState.targetProfiles.length?workspaceState.targetProfiles.slice().sort((a,b)=> b.effective.localeCompare(a.effective)).map((x)=> '<tr><td><span class="row-title">'+wsEsc(x.name)+'</span></td><td>'+wsEsc(x.scope)+'<span class="row-meta">'+wsEsc(wsEntityName(x.scopeId))+'</span></td><td>CPA '+wsMoney(x.targetCpa)+' · ROAS '+(x.targetRoas==null?'—':x.targetRoas)+'<span class="row-meta">CTR '+wsPct(x.targetCtr,2)+'</span></td><td>'+wsMoney(x.monthlyBudget)+'</td><td>'+wsDateLabel(x.effective)+'</td><td>'+wsActionButtons('target',x.id,false)+'</td></tr>').join(''):wsEmpty(6,'No target profiles','Create targets before judging efficiency or pacing.');
-  renderRules();renderDataQuality();renderSettings();
-}
-function renderDataQuality(){if(!$('ws-quality-score'))return;var q=workspaceQuality();$('ws-quality-score').textContent=q.score+'%';$('ws-quality-records').textContent=dailyRecords.length;$('ws-quality-duplicates').textContent=(workspaceState.meta.duplicatesBlocked||0)+q.duplicates;$('ws-quality-warnings').textContent=q.warnings+$('ws-unmatched-count').textContent*1;$('ws-quality-batches').textContent=workspaceState.importBatches.length;$('ws-quality-copy').textContent=!dailyRecords.length?'Add performance records to begin validation.':q.errors?'Resolve '+q.errors+' blocking data issue'+(q.errors===1?'':'s')+'.':q.warnings?'Review '+q.warnings+' warning'+(q.warnings===1?'':'s')+' before scaling.':'All current rows pass structural checks.';$('ws-import-rows').innerHTML=workspaceState.importBatches.length?workspaceState.importBatches.map((x)=> '<tr><td>'+wsDateLabel(x.at.slice(0,10))+'<span class="row-meta">'+wsEsc(new Date(x.at).toLocaleTimeString())+'</span></td><td>'+wsEsc(x.fileName||'Manual import')+'</td><td class="num">'+x.accepted+'</td><td class="num">'+x.updated+'</td><td class="num">'+x.blocked+'</td><td class="num">'+x.warnings+'</td></tr>').join(''):wsEmpty(6,'No import batches','Use the validated CSV import in Daily performance.')}
+  var defaults=Object.keys(WORKSPACE_DEFAULT_RULES).…1178 tokens truncated…="num">'+x.updated+'</td><td class="num">'+x.blocked+'</td><td class="num">'+x.warnings+'</td></tr>').join(''):wsEmpty(6,'No import batches','Use the validated CSV import in Daily performance.')}
 var wsBackupRenderToken=0;
 function renderBackups(){if(!$('ws-backup-list')||!window.TWC||!TWC.store)return;var token=++wsBackupRenderToken;TWC.store.backups().then((items)=> {if(token!==wsBackupRenderToken)return;$('ws-backup-list').innerHTML=items.length?items.slice(0,10).map((x)=> '<div class="archive-card"><div class="archive-card-head"><div><h4>'+new Date(x.savedAt).toLocaleString()+'</h4><p>'+wsEsc(x.reason||'Automatic checkpoint')+'</p></div><div class="inline-actions"><button type="button" data-backup-restore="'+wsEsc(x.key)+'">Restore</button><button type="button" data-backup-remove="'+wsEsc(x.key)+'">Remove</button></div></div></div>').join(''):'<div class="empty-compact">Checkpoints will appear after the first save.</div>'})}
 function renderSettings(){if(!$('ws-setting-name'))return;var m=workspaceState.meta;wsSet('ws-setting-name',m.name);wsSet('ws-setting-owner',m.owner);wsSet('ws-setting-currency',m.currency);wsSet('ws-setting-locale',m.locale);wsSet('ws-setting-timezone',m.timezone);wsSet('ws-setting-week',m.weekStart);renderBackups()}
@@ -341,3 +332,4 @@ function bindProduction(){
   wsFormReset('account');wsFormReset('product');wsFormReset('campaign');wsFormReset('target');audienceReset();measurementReset();claimReset();incidentReset();
 }
 bindProduction();
+
