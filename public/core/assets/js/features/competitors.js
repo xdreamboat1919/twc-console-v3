@@ -46,7 +46,7 @@ var COMPETITOR_TESTS=[
 ];
 
 var competitorState={brand:'all',query:'',format:'',stage:''};
-function compEsc(value){return String(value==null?'':value).replace(/[&<>"']/g,(c)=> {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])}
+function compEsc(value){return String(value==null?'':value).replace(/[&<>"']/g,(c)=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function compOptions(values,label){return '<option value="">'+compEsc(label)+'</option>'+values.map((v)=> '<option>'+compEsc(v)+'</option>').join('')}
 function compMetric(label,value,detail){return '<div><span>'+compEsc(label)+'</span><b>'+compEsc(value)+'</b><small>'+compEsc(detail)+'</small></div>'}
 function compSummary(brand){return '<div class="comp-summary"><div class="lead"><span>Current read</span><b>'+compEsc(brand.focus)+'</b><small>'+compEsc(brand.note)+'</small></div>'+compMetric('Ads sampled',brand.ads,'Active on pull date')+compMetric('Dynamic / catalog',brand.dynamic,'Share of sampled ads')+compMetric('Fixed layer',brand.fixed,'Most useful authored signal')+compMetric('Observed path',brand.funnel,'Destination pattern, not performance')+'</div>'}
@@ -68,3 +68,4 @@ if(typeof document!=='undefined'){
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',renderCompetitors);
   else renderCompetitors();
 }
+
