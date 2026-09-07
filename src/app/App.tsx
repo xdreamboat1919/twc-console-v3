@@ -8,10 +8,20 @@ import { metrics } from './data.js';
 
 export function App(): JSX.Element {
   const [activeView, setActiveView] = useState<'overview' | 'core'>('overview');
+  const [coreSection, setCoreSection] = useState('routine');
+
+  function openCore(section: string): void {
+    setCoreSection(section);
+    setActiveView('core');
+  }
 
   return (
     <div className="min-h-screen bg-[#f7f5f1] text-slate-900 lg:flex">
-      <Sidebar activeView={activeView} onSelect={setActiveView} />
+      <Sidebar
+        activeView={activeView}
+        onOpenCore={openCore}
+        onOpenOverview={() => setActiveView('overview')}
+      />
       <main className="min-w-0 flex-1">
         <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 bg-white px-6 py-4 lg:px-9">
           <p className="text-sm font-medium text-slate-500">Private workspace · Local data</p>
@@ -56,7 +66,8 @@ export function App(): JSX.Element {
           <section className="h-[calc(100vh-73px)] bg-white p-3 sm:p-5">
             <iframe
               className="size-full rounded-xl border border-slate-200"
-              src="./core/index.html"
+              key={coreSection}
+              src={`./core/index.html#${coreSection}`}
               title="Campaign Console core workspace"
             />
           </section>
@@ -65,3 +76,4 @@ export function App(): JSX.Element {
     </div>
   );
 }
+
